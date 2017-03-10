@@ -1,2 +1,0 @@
-# ina
-Idiotic NaNoWroMo Appender
