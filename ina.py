@@ -30,12 +30,10 @@ config = ConfigParser(inline_comment_prefixes=None)
 
 
 DEFAULT_TAIL_COUNT = 280
-DEFAULT_WRAP_MARGIN = 15
+DEFAULT_WRAP_MARGIN = "15"
 DEFAULT_POMODORO_TIME = "25" 
 DEFAULT_UNTITLED_FILENAME = "./%Y-%m-%d.txt"
 DEFAULT_TODO_MARKER = "TODO"
-
-wrap_margin = DEFAULT_WRAP_MARGIN
 
 dist_config = '''
 [general]
@@ -128,7 +126,15 @@ dist_config = '''
 ##      When you accidentally hit backspace and some other editing keys,
 ##      it will insert a to-do marker ("TODO" by default). If you
 ##      prefer another marker, change that here.
-# todo-market: TODO
+# todo-marker: TODO
+
+## wrap-margin
+##      Because 'ina' is not an editor, it has no concept of the text you
+##      have entered. It can't go back a few letters and wrap a word you
+##      have already started typing. Because of this, it uses a ragged
+##      margin where as soon as you type a space in this margin, it
+##      wraps your text. This is handled as a percentage of screen size.
+# wrap-margin: 15
 '''
 
 
@@ -151,6 +157,7 @@ CONTEST_TITLES = {
 
 class UiComponent:
     oneln_mode = False
+    wrap_margin = int(DEFAULT_WRAP_MARGIN)
     def __init__(self, stdscr):
         self.stdscr = stdscr 
         stdscr.clear()
@@ -256,7 +263,7 @@ class UiComponent:
         cur_y = stdscr.getyx()[0]
         if isinstance(data, str):
             max_x = stdscr.getmaxyx()[1]
-            limit = int(max_x // wrap_margin)
+            limit = int(max_x // self.wrap_margin)
             if self.oneln_mode:
                 limit = limit + limit
             limit = max_x - limit
@@ -381,6 +388,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
         else:
             self.filename = os.path.expanduser(time.strftime(untitled_filename))
         self.todo_marker = config["general"].get("todo-marker", DEFAULT_TODO_MARKER)
+        self.wrap_margin = int(config["general"].get("wrap-margin", DEFAULT_WRAP_MARGIN))
 
     def check_file(self):
         ret = None
@@ -431,6 +439,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
     def load(self, stdscr): 
         self.ui = UiComponent(stdscr)
         self.ui.toggle_oneline(self.one_line)
+        self.ui.wrap_margin = self.wrap_margin
         tail = self.check_file() 
         self.was_space = True
         if tail and tail[-1] and tail[-1][-1] not in " \n\r\t":
@@ -485,7 +494,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
             self.new_words += 1
             self.ui.shared_write(outf, " ")
         self.was_space = True
-        self.ui.shared_write(outf, todo_marker)
+        self.ui.shared_write(outf, self.todo_marker)
         self.ui.shared_write(outf, " ")
         self.new_words += 1
         outf.flush()
