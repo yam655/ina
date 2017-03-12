@@ -158,12 +158,18 @@ CONTEST_TITLES = {
 class UiComponent:
     oneln_mode = False
     wrap_margin = int(DEFAULT_WRAP_MARGIN)
+    _last_max_x = -1
+    _last_max_y = -1
     def __init__(self, stdscr):
         self.stdscr = stdscr 
-        stdscr.clear()
-        stdscr.scrollok(1)
-        stdscr.move(5,0)
-        stdscr.refresh()
+        self.need_reset = True
+
+    def reset(self):
+        self.need_reset = False
+        self.stdscr.clear()
+        self.stdscr.scrollok(1)
+        self.stdscr.move(5,0)
+        self.stdscr.refresh()
 
     def status_line(self, *, run_time=None, contest_time=None,
                     total_words=None, new_words = None, contest_words = None,
@@ -171,7 +177,11 @@ class UiComponent:
                     oneline = False):
         stdscr = self.stdscr
         global CONTEST_TITLES
-        max_x = stdscr.getmaxyx()[1]
+        max_y, max_x = stdscr.getmaxyx()
+        if max_y != self._last_max_y or max_x != self._last_max_x:
+            self.need_reset = True
+            self._last_max_x = max_x
+            self._last_max_y = max_y
         y, x = stdscr.getyx()
         buf = ""
         left = ""
@@ -263,9 +273,7 @@ class UiComponent:
         cur_y = stdscr.getyx()[0]
         if isinstance(data, str):
             max_x = stdscr.getmaxyx()[1]
-            limit = int(max_x // self.wrap_margin)
-            if self.oneln_mode:
-                limit = limit + limit
+            limit = int(max_x * self.wrap_margin / 100)
             limit = max_x - limit
             for d in data:
                 if d == " " and stdscr.getyx()[1] >= limit:
@@ -313,6 +321,7 @@ class UiComponent:
         return ret
 
     def pause(self):
+        stdscr = self.stdscr
         cur_y, cur_x = stdscr.getyx()
         max_y, max_x = stdscr.getmaxyx()
         buf = []
@@ -436,26 +445,16 @@ DEFAULT_UNTITLED_FILENAME).strip()
     def __init__(self, args):
         self._parse(args)
 
-    def load(self, stdscr): 
-        self.ui = UiComponent(stdscr)
-        self.ui.toggle_oneline(self.one_line)
-        self.ui.wrap_margin = self.wrap_margin
+    def _reload(self, outf):
+        if outf is not None:
+            outf.flush()
         tail = self.check_file() 
         self.was_space = True
         if tail and tail[-1] and tail[-1][-1] not in " \n\r\t":
             self.was_space = False
             self.start_words -= 1
-        self.new_words = 0
-        self.start_duration = 0
-        self.start_time = time.perf_counter()
-        self.contest_mode = None
-        self.contest_starttime = None
-        self.contest_startwords = None
-        self.contest_time = None
-        self.contest_words = None
-        self.contest_data = None
-        self.contest_wpm = None
 
+        self.ui.reset()
         self.ui.status_line(run_time=time.perf_counter() - self.start_time,
                             total_words=self.start_words + self.new_words,
                             new_words = self.new_words)
@@ -467,6 +466,23 @@ DEFAULT_UNTITLED_FILENAME).strip()
         else:
             self.ui.write("[...]")
             self.ui.write(tail)
+
+
+    def load(self, stdscr): 
+        self.ui = UiComponent(stdscr)
+        self.ui.toggle_oneline(self.one_line)
+        self.ui.wrap_margin = self.wrap_margin
+        self.new_words = 0
+        self.start_duration = 0
+        self.start_time = time.perf_counter() 
+        self.contest_mode = None
+        self.contest_starttime = None
+        self.contest_startwords = None
+        self.contest_time = None
+        self.contest_words = None
+        self.contest_data = None
+        self.contest_wpm = None 
+        self._reload(None)
 
     def _update_status(self):
         self.ui.status_line(
@@ -564,6 +580,8 @@ DEFAULT_UNTITLED_FILENAME).strip()
             self._do_race()
         elif key == CTRL_B:
             self._do_oneline()
+        elif key == curses.KEY_RESIZE:
+            self._reload(outf)
 
     def _calculate_war(self): 
         check = time.perf_counter() - self.contest_starttime
@@ -619,6 +637,8 @@ DEFAULT_UNTITLED_FILENAME).strip()
                 self._run_key(outf, key)
                 self._run_contests()
                 self._update_status()
+                if self.ui.need_reset:
+                    self._reload(outf)
                 key = self.ui.getch(timeout=0.2)
 
 def from_human_duration(code, *, minutes = False):

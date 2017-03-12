@@ -172,5 +172,3 @@ If you use a light-weight markup format, such as
 reStructuredText, Markdown, or similar, this
 should work well for you.
 
-
-
