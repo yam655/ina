@@ -12,9 +12,31 @@ Starting the program
 --------------------
 
 `ina` is a text-mode program, and needs to be run from a terminal or terminal
-emulator. You run it with the name of the file to edit.
+emulator. To get the most out of the program, the window should be at least
+20 columns by 3 rows. (This means it should be fully functional on little LCD
+displays.)
 
-It does not currently have any arguments.
+Less than three rows and you no longer get the status
+line. Narrower than about 20 columns and the contest information (for word
+wars and races) will no longer be available. (It has been tested and functions
+in a 2x2 window, if you're just looking at blind-typing. My terminal emulator
+window couldn't get smaller than that.)
+
+`ina` primarily supports an optional file name. Here's the full usage::
+
+    usage: ina [-h] [--user-config DIR] [--one-line] [--generate-config] [file]
+
+    This is an Idiotic NaNoWriMo Appender.
+
+    positional arguments:
+      file               Name of target file to append to.
+
+    optional arguments:
+      -h, --help         show this help message and exit
+      --user-config DIR  Specify an alternate user configuration directory.
+      --one-line, -b     Enable one-line mode from the start.
+      --generate-config  Create a config file in ~/.config/ina/settings.conf
+
 
 Key commands
 ============
@@ -88,6 +110,11 @@ To clear the details for a previous contest run, select either a "Word War" or
 a "Word Race" and press enter instead of providing a value. It will clear the
 central contest details.
 
+To clear the contest data, select a word war or a word race and hit enter or
+specify "0". This will clear the contest data without specifying a new contest.
+This is needed to see the normal status bar if the window is narrow enough that
+the contest data cannot be displayed with the normal status bar.
+
 Screen shots
 ------------
 
@@ -147,11 +174,120 @@ Consider using `^B` for "one-line mode"::
 
 
 
-When the text wraps, the line is cleared. When you hit enter or return, the
-line is cleared.
+In one-line mode, text is removed from the preceding line as new text is
+added. This means that when writing a paragraph, you have a one full line
+of text always visible.
 
 Since `ina` is not an editor, and does not keep track of what you type, when
 you exit one-line mode you do not suddenly have context on your screen.
+
+The ~/.config/ina/settings.conf file
+------------------------------------
+
+The `--generate-config` option will create a default configuration file.
+
+That is currently as follows::
+
+    [general]
+    ## untitled-filename
+    ##      While many applications may default to "Untitled", this
+    ##      is guaranteed to be a bad title in every circumstance.
+    ##      `ina` defaults to using date-based files in the current
+    ##      directory. You can use an explicit journal directory
+    ##      by specifying a path.
+    ##
+    ##      ~ is expanded to your home directory.
+    ##
+    ##      The standard strftime-based '%' escapes are available, so:
+    ##          %a : Locale's abbreviated weekday name
+    ##          %A : Locale's full weekday name
+    ##          %b : Locale's abbreviated month name
+    ##          %B : Locale's full month name
+    ##          %c : Locale's appropriate date and time
+    ##          %d : Day of month [01,31]
+    ##          %H : Hour (24 hour clock) [00,23]
+    ##          %I : Hour (12 hour clock) [01,12]
+    ##          %j : day of year as number [001,366]
+    ##          %m : month as number [01,12]
+    ##          %M : minute [00,59]
+    ##          %p : Locale's equivalent of AM/PM
+    ##          %S : second as number [00,61]
+    ##          %U : week number (Sunday as start of week) [00,53]
+    ##          %w : weekday as number starting at Sunday [0,6]
+    ##          %W : week number (Monday as start of week) [00,53]
+    ##          %x : Locale's appropriate date
+    ##          %X : Locale's appropriate time
+    ##          %y : Year without century [00,99]
+    ##          %Y : Year with century
+    ##          %z : Time zone offset from UTC
+    ##          %Z : Time zone name
+    ##          %% : literal '%' character.
+    ##
+    ## Maybe you want something useless, but more standard.
+    # untitled-filename: ./Untitled Draft.txt 
+    ## The default, current directory date-based: ./2017-03-11.txt
+    # untitled-filename: ./%Y-%m-%d.txt
+    ## Journal directory hour-based file: ~/Journal/2017-03/11-13.txt
+    # untitled-filename: ~/Journal/%Y-%m/%d-%H.txt
+    ## Documents folder, week-based file: ~/Documents/Early-Draft-2017-10.txt
+    # untitled-filename: ~/Documents/Early-Draft-%Y-%W.txt
+
+    ## tail-count
+    ##      We display the tail end of the file being appended to when
+    ##      we start. You have a number of ways to specify this value,
+    ##      but remember: This is limited to the last screenful of text
+    ##      at most, so this really only changes whether you're likely
+    ##      to see the help text.
+    ##
+    ##      All longer words have a short form. The trailing 's' may be
+    ##      present or omitted. ("1 paragraph" or "1 paragraphs" are
+    ##      both valid the file's purpose.)
+    ##
+    ## The default, the last 280 Unicode codepoints in the file.
+    ## (May also be written as 'characters' or 'codepoints'.)
+    # tail-count: 280 chars
+    ## The last five minutes work, if typing at 40 WPM
+    # tail-count: 200 words
+    ## The last 10 lines, like the standard `tail` command
+    # tail-count: 10 lines
+    ## The last paragraph
+    ## (May also be written as 'paragraphs'.)
+    # tail-count: 1 para
+
+    ## pomodoro-time
+    ##      The ^T key starts a "pomodoro". The standard duration of a
+    ##      pomodoro is 25 minutes, however in NaNo land a lot of folks
+    ##      use 20 minute sprints with 10 minute breaks.
+    ##
+    ## Standard Pomodoro time according to the book
+    # pomodoro-time: 25
+    ## Common Word Sprint time
+    # pomodoro-time: 20
+
+    ## pomodoro-during-run
+    ##      By default, during the Pomodoro, you don't see your time-left
+    ##      and you don't see how many words you've typed. You see a
+    ##      spinner, indicating time is passing, and you see your speed.
+    ##
+    ## The default is just the rate (spinner shows when 'time' is off)
+    # pomodoro-during-run: rate
+    ## To make Pomodoro mode work like 'Word War'
+    # pomodoro-during-run: words time rate
+
+    ## todo-marker
+    ##      When you accidentally hit backspace and some other editing keys,
+    ##      it will insert a to-do marker ("TODO" by default). If you
+    ##      prefer another marker, change that here.
+    # todo-marker: TODO
+
+    ## wrap-margin
+    ##      Because 'ina' is not an editor, it has no concept of the text you
+    ##      have entered. It can't go back a few letters and wrap a word you
+    ##      have already started typing. Because of this, it uses a ragged
+    ##      margin where as soon as you type a space in this margin, it
+    ##      wraps your text. This is handled as a percentage of screen size.
+    # wrap-margin: 15
+
 
 Original Example Text
 ---------------------

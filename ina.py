@@ -25,6 +25,8 @@ parser.add_argument("--one-line", "-b", action='store_true',
         help="Enable one-line mode from the start.")
 parser.add_argument("--generate-config", action='store_true',
         help="Create a config file in ~/.config/ina/settings.conf")
+parser.add_argument('--version', action='version', version='ina Version 0.9')
+
 
 config = ConfigParser(inline_comment_prefixes=None)
 
@@ -83,7 +85,7 @@ dist_config = '''
 ## tail-count
 ##      We display the tail end of the file being appended to when
 ##      we start. You have a number of ways to specify this value,
-##      but remember This is limited to the last screenful of text
+##      but remember: This is limited to the last screenful of text
 ##      at most, so this really only changes whether you're likely
 ##      to see the help text.
 ##
@@ -168,7 +170,13 @@ class UiComponent:
         self.need_reset = False
         self.stdscr.clear()
         self.stdscr.scrollok(1)
-        self.stdscr.move(5,0)
+        max_y = self.stdscr.getmaxyx()[0]
+        if max_y > 10:
+            self.stdscr.move(5,0)
+        elif max_y >= 3:
+            self.stdscr.move(2,0)
+        else:
+            self.stdscr.move(0,0)
         self.stdscr.refresh()
 
     def status_line(self, *, run_time=None, contest_time=None,
@@ -177,7 +185,9 @@ class UiComponent:
                     oneline = False):
         stdscr = self.stdscr
         global CONTEST_TITLES
-        max_y, max_x = stdscr.getmaxyx()
+        max_y, max_x = self.stdscr.getmaxyx()
+        if max_y < 3:
+            return
         if max_y != self._last_max_y or max_x != self._last_max_x:
             self.need_reset = True
             self._last_max_x = max_x
@@ -191,7 +201,10 @@ class UiComponent:
         if run_time is not None or new_words is not None:
             if buf != "":
                 buf += "  "
-            b = ["Session "]
+            if max_x < 40:
+                b = ["S."]
+            else:
+                b = ["Session "]
             if run_time is not None:
                 b.append(human_duration(run_time))
                 if new_words is not None:
@@ -200,11 +213,14 @@ class UiComponent:
                 b.append(str(new_words))
             left = "".join(b)
         if self.oneln_mode:
-            left += " [One-Line]"
+            if max_x < 40:
+                left += " OL"
+            else:
+                left += " [One-Line]"
 
         if buf != "":
             buf += "  "
-        if contest_mode is not None:
+        if contest_mode is not None and max_x >= 40:
             title = CONTEST_TITLES.get(contest_mode, "Contest({})".format(contest_mode))
             b = [title, " "]
         else:
@@ -223,31 +239,109 @@ class UiComponent:
         center = "".join(b)
 
         if total_words is not None:
-            right = "{} words".format(total_words)
+            if max_x < 40:
+                right = "{}w".format(total_words)
+            else:
+                right = "{} words".format(total_words)
 
-        stdscr.addstr(0, 0, left)
+        stdscr.move(0, 0)
         stdscr.clrtoeol()
-        if center:
-            stdscr.addstr(0, max_x // 2 - len(center) // 2, center)
-        if right:
-            stdscr.addstr(0, max_x - len(right), right)
-        stdscr.move(1,0)
-        stdscr.clrtoeol()
+        ce = len(center)
+        ri = len(right)
+        le = len(left)
+        if center and ce + ri + le + 2+ 2  >= max_x:
+            if max_x < 6:
+                pass
+            elif ce >= max_x:
+                stdscr.addstr(0, 0, "...")
+                stdscr.addstr(center[ce - max_x - 3:])
+            else:
+                stdscr.addstr(0, 0, center) 
+        elif center:
+            space = (max_x - ce - ri - le) // 2;
+            stdscr.addstr(0, 0, left)
+            stdscr.addstr(" " * space)
+            stdscr.addstr(center)
+            stdscr.addstr(" " * space)
+            stdscr.addstr(right)
+        elif ri + le + 1 >= max_x:
+            if le < max_x:
+                stdscr.addstr(0, 0, left) 
+        else:
+            space = (max_x - ri - le);
+            stdscr.addstr(0, 0, left)
+            stdscr.addstr(" " * space)
+            stdscr.addstr(right)
+
+        if max_y > 5:
+            stdscr.move(1,0)
+            stdscr.clrtoeol()
         stdscr.move(y,x)
 
-    def query(self, question): 
+    def _query_narrow(self, question):
         global code
-        stdscr = self.stdscr
-        cur_y, cur_x = stdscr.getyx()
-        stdscr.addstr(1,0, question)
+        cur_y, cur_x = self.stdscr.getyx()
+        max_y, max_x = self.stdscr.getmaxyx()
+
+        buf = [] 
+        for y in range(max_y):
+            buf.append(self.stdscr.instr(y, 0))
+
+        self.stdscr.clear() 
+        self.stdscr.move(cur_y,0)
+        self.write(question)
+        self.write(" ")
+        cy, cx = self.stdscr.getyx()
         curses.echo()
-        resp = stdscr.getstr(1, len(question) + 1)
+        resp = self.stdscr.getstr(cy, cx)
+        got = str(resp, code)
+        curses.noecho() 
+
+        self.stdscr.clear()
+        for y in range(max_y):
+            self.stdscr.insstr(y, 0, buf[y])
+        self.stdscr.move(cur_y, cur_x)
+        self.stdscr.refresh()
+
+        return got
+
+    def _query_small(self, question):
+        global code
+        cur_y, cur_x = self.stdscr.getyx()
+        buf = self.stdscr.instr(0, 0)
+        self.stdscr.addstr(0,0, question)
+        self.stdscr.clrtoeol() 
+        curses.echo()
+        resp = self.stdscr.getstr(0, len(question) + 1)
+        got = str(resp, code)
+        curses.noecho() 
+        self.stdscr.move(0,0)
+        self.stdscr.clrtoeol()
+        self.stdscr.insstr(0, 0, buf) 
+        self.stdscr.move(cur_y, cur_x)
+        return got
+
+    def _query_large(self, question):
+        global code
+        cur_y, cur_x = self.stdscr.getyx()
+        self.stdscr.addstr(1,0, question) 
+        curses.echo()
+        resp = self.stdscr.getstr(1, len(question) + 1)
         got = str(resp, code)
         curses.noecho()
         self.stdscr.move(1,0)
-        self.stdscr.clrtoeol()
+        self.stdscr.clrtoeol() 
         self.stdscr.move(cur_y, cur_x)
         return got
+
+    def query(self, question): 
+        max_y, max_x = self.stdscr.getmaxyx()
+        if max_x < len(question) + 10:
+            return self._query_narrow(question)
+        elif max_y > 5:
+            return self._query_large(question)
+        else:
+            return self._query_small(question) 
 
     def shared_write(self, outf, what):
         outf.write(what)
@@ -256,8 +350,8 @@ class UiComponent:
     def flash(self):
         stdscr = self.stdscr
         # curses.flash() exists, but didn't work in iTerm2 on the Mac for me.
-        cur_y, cur_x = stdscr.getyx()
-        max_y = stdscr.getmaxyx()[0]
+        cur_y, cur_x = self.stdscr.getyx()
+        max_y = self.stdscr.getmaxyx()[0]
         for y in range(max_y):
             stdscr.chgat(y, 0, curses.A_REVERSE)
         stdscr.refresh()
@@ -272,28 +366,32 @@ class UiComponent:
         stdscr = self.stdscr
         cur_y = stdscr.getyx()[0]
         if isinstance(data, str):
-            max_x = stdscr.getmaxyx()[1]
+            max_y, max_x = self.stdscr.getmaxyx()
+            cur_y, cur_x = self.stdscr.getyx()
             limit = int(max_x * self.wrap_margin / 100)
             limit = max_x - limit
             for d in data:
-                if d == " " and stdscr.getyx()[1] >= limit:
-                    if self.oneln_mode:
-                        stdscr.addstr("\r")
+                if self.oneln_mode and max_y >= 3:
+                    stdscr.addstr(cur_y - 1, cur_x, " " * len(d))
+                    stdscr.move(cur_y, cur_x)
+                if d in " -" and cur_x >= limit:
+                    if self.oneln_mode and max_y >= 3:
+                        stdscr.move(cur_y - 1, 0)
                         stdscr.clrtoeol()
-                    else:
-                        stdscr.addstr("\n")
-                elif d in "\n" and self.oneln_mode:
-                    stdscr.addstr("\r")
-                    stdscr.clrtoeol()
+                        stdscr.move(cur_y, cur_x)
+                    stdscr.addstr(d)
+                    stdscr.addstr("\n")
+                elif d in "\n":
+                    if self.oneln_mode and max_y >= 3:
+                        stdscr.move(cur_y - 1, 0)
+                        stdscr.clrtoeol()
+                        stdscr.move(cur_y, cur_x)
+                    stdscr.addstr(d)
                 else:
                     stdscr.addstr(d)
         else:
-            if self.oneln_mode:
-                write(stdscr, "\n")
-            else:
-                for d in data:
-                    write(stdscr, d)
-                    stdscr.addstr("\n")
+            for d in data:
+                write(stdscr, d)
 
     def getch(self, block=True, timeout=None):
         stdscr = self.stdscr
@@ -322,8 +420,8 @@ class UiComponent:
 
     def pause(self):
         stdscr = self.stdscr
-        cur_y, cur_x = stdscr.getyx()
-        max_y, max_x = stdscr.getmaxyx()
+        cur_y, cur_x = self.stdscr.getyx()
+        max_y, max_x = self.stdscr.getmaxyx()
         buf = []
         for y in range(max_y):
             buf.append(stdscr.instr(y, 0))
@@ -342,9 +440,14 @@ class UiComponent:
             new_state = not self.oneln_mode
         if new_state:
             max_y = self.stdscr.getmaxyx()[0]
-            self.stdscr.clear()
-            self.stdscr.move(max_y // 2, 0)
+            cur_y, cur_x = self.stdscr.getyx()
+            for y in range(1,cur_y - 1):
+                self.stdscr.move(y, 0)
+                self.stdscr.clrtoeol()
+            self.stdscr.addstr(cur_y - 1, 0, " " * cur_x)
+            self.stdscr.move(cur_y, cur_x)
         self.oneln_mode = new_state
+        return new_state
 
 
 
@@ -389,8 +492,7 @@ class IdioticNanowrimoAppender:
                     self.tail_type = tc[1]
             except ValueError:
                 pass
-        untitled_filename = config["general"].get("untitled-filename",
-DEFAULT_UNTITLED_FILENAME).strip()
+        untitled_filename = config["general"].get("untitled-filename", DEFAULT_UNTITLED_FILENAME).strip()
         self.one_line = args.one_line
         if args.file:
             self.filename = args.file
@@ -408,7 +510,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
         if ret is None:
             ret = whole
         if whole is not None:
-            self.start_words += len(whole.split())
+            self.start_words = len(whole.split())
             if self.tail_type in ("word", "words"):
                 t = whole.replace("\n\n"," [NEW-PARAGRAPH]").split()[-self.tail_count:]
                 ret = " ".join(t).replace(" [NEW-PARAGRAPH]", "\n\n")
@@ -430,7 +532,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
                     r.append(para)
                     if len(r) >= self.tail_count:
                         break
-                t.reverse()
+                r.reverse()
                 if whole.endswith("\n\n"):
                     r.append("")
                     ret = "\n\n".join(r)
@@ -445,13 +547,13 @@ DEFAULT_UNTITLED_FILENAME).strip()
     def __init__(self, args):
         self._parse(args)
 
-    def _reload(self, outf):
+    def _reload(self, outf = None):
         if outf is not None:
             outf.flush()
         tail = self.check_file() 
-        self.was_space = True
+        self.was_seperator = True
         if tail and tail[-1] and tail[-1][-1] not in " \n\r\t":
-            self.was_space = False
+            self.was_seperator = False
             self.start_words -= 1
 
         self.ui.reset()
@@ -496,20 +598,20 @@ DEFAULT_UNTITLED_FILENAME).strip()
             new_words = self.new_words)
 
     def _do_input(self, outf, key): 
-        if key in " \n\t":
-            if not self.was_space:
+        if key in "- \n\t":
+            if not self.was_seperator:
                 self.new_words += 1
                 outf.flush()
-            self.was_space = True
+            self.was_seperator = True
         else:
-            self.was_space = False
+            self.was_seperator = False
         self.ui.shared_write(outf, key)
 
     def _do_todo(self, outf): 
-        if not self.was_space:
+        if not self.was_seperator:
             self.new_words += 1
             self.ui.shared_write(outf, " ")
-        self.was_space = True
+        self.was_seperator = True
         self.ui.shared_write(outf, self.todo_marker)
         self.ui.shared_write(outf, " ")
         self.new_words += 1
@@ -533,7 +635,7 @@ DEFAULT_UNTITLED_FILENAME).strip()
         got = self.ui.query(question) 
         self.contest_time = None
         self.contest_words = None
-        self.contest_bpm = None
+        self.contest_wpm = None 
         if got.strip() != "":
             self.contest_data = from_human_duration(got, minutes=True)
             if self.contest_data != 0:
@@ -542,13 +644,17 @@ DEFAULT_UNTITLED_FILENAME).strip()
                 self.contest_words = 0
                 self.contest_startwords = self.new_words
                 self.contest_mode = "war"
+            else:
+                self.contest_mode = None
+        else:
+            self.contest_mode = None
 
     def _do_race(self): 
         question = "Race for how many words?"
         got = self.ui.query(question)
         self.contest_time = None
         self.contest_words = None
-        self.contest_bpm = None
+        self.contest_wpm = None 
         if got.strip() != "":
             try:
                 self.contest_data = int(got)
@@ -560,9 +666,14 @@ DEFAULT_UNTITLED_FILENAME).strip()
                 self.contest_time = time.perf_counter() - self.contest_starttime
                 self.contest_words = self.new_words - self.contest_startwords
                 self.contest_mode = "race"
+            else:
+                self.contest_mode = None
+        else:
+            self.contest_mode = None
 
     def _do_oneline(self):
-        self.ui.toggle_oneline()
+        if not self.ui.toggle_oneline():
+            self._reload()
 
     def _run_key(self, outf, key):
         if isinstance(key, str):
