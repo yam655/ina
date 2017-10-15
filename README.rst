@@ -76,8 +76,27 @@ Key commands
 
     *One-line Mode.* This is a special mode for writing in public places.
     This hides all of the text except for the current line.
-    This toggles One-Line Mode, so if it is enabled, it will disble it.
+    This toggles One-Line Mode, so if it is enabled, it will disable it.
 
+Shift-Down
+
+    *Next File.* This looks for the number in your filename and increments
+    it. See "Project Support" for details.
+
+Shift-Up
+
+    *Previous File.* This looks for the number in your filename name
+    decrements it. See "Project Support" for details.
+
+Shift-Right
+
+    *Outline on Right* This tries to show you a similarly named outline file.
+    See "Project Support" for details.
+
+Shift-Left
+
+    *Outline on Left* This tries to show you a similarly named outline file.
+    See "Project Support" for details.
 
 Status Line
 -----------
@@ -114,6 +133,51 @@ To clear the contest data, select a word war or a word race and hit enter or
 specify "0". This will clear the contest data without specifying a new contest.
 This is needed to see the normal status bar if the window is narrow enough that
 the contest data cannot be displayed with the normal status bar.
+
+Project Support
+---------------
+
+There is some very crude support for multi-file projects.
+
+There's support for using Shift-Down to go to the next file, and Shift-Up to
+go to the previous file. There's some major caveats, though.
+
+If you're writing with one chapter per file, it expects the chapter number to
+be the only number in the filename. Whether this is one digit or three doesn't
+matter, and it will zero-pad as needed to match what you previously had.
+
+If you're writing with one scene per file, and you use the `<chapter><scene>`
+combined numeric identifier, it will only work while in that chapter. It has
+no way of incrementing the chapter-part of the number. If you separate the
+chapter and scene number with anything and it sees two different numbers
+in the filename, it will not do anything at all.
+
+There is support for a file-specific outlines. The expectation is that
+the leading part of the filenames will be the same. Ideally, there is an
+underscore (`_`) or dash (`-`) separating the group-specific identifier
+from the story / outline identifier.
+
+Here's an example::
+
+    ch01-story.txt
+    ch01-outline.txt
+
+However, if there are no dashes or underscores, it leans upon the period
+as the separator::
+
+    ch01.txt
+    ch01.outline
+
+Note that in this case, it ignores both the original extension, as well as the
+period itself, so the following also works::
+
+    ch01.txt
+    ch01-outline.txt
+
+This is currently designed to work with only two files. Three files and while
+the Left-Outline and Right-Outline keys will be consistent, none of them may
+be presenting the same information as Control-L. (Control-L will always
+refresh the output file.)
 
 Screen shots
 ------------

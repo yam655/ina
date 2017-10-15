@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 import io
 import os
+import re
+import glob
 
 import curses
 import select
@@ -25,7 +27,7 @@ parser.add_argument("--one-line", "-b", action='store_true',
         help="Enable one-line mode from the start.")
 parser.add_argument("--generate-config", action='store_true',
         help="Create a config file in ~/.config/ina/settings.conf")
-parser.add_argument('--version', action='version', version='ina Version 0.9')
+parser.add_argument('--version', action='version', version='ina Version 0.9+PROJECT.1')
 
 
 config = ConfigParser(inline_comment_prefixes=None)
@@ -148,6 +150,7 @@ CTRL_H = ord("H") - ord("@")
 CTRL_R = ord("R") - ord("@")
 CTRL_W = ord("W") - ord("@")
 CTRL_T = ord("T") - ord("@")
+CTRL_L = ord("L") - ord("@")
 CTRL_P = ord("P") - ord("@")
 CTRL_B = ord("B") - ord("@")
 CTRL_QUESTION = 0x7f
@@ -498,17 +501,17 @@ class IdioticNanowrimoAppender:
             self.filename = args.file
         else:
             self.filename = os.path.expanduser(time.strftime(untitled_filename))
+        self.next_filename = None
         self.todo_marker = config["general"].get("todo-marker", DEFAULT_TODO_MARKER)
         self.wrap_margin = int(config["general"].get("wrap-margin", DEFAULT_WRAP_MARGIN))
 
-    def check_file(self):
+    def check_any_file(self, filename):
         ret = None
         whole = None
-        fpath = Path(self.filename)
+        fpath = Path(filename)
         if fpath.exists():
             whole = fpath.read_text()
-        if ret is None:
-            ret = whole
+        ret = whole
         if whole is not None:
             self.start_words = len(whole.split())
             if self.tail_type in ("word", "words"):
@@ -544,6 +547,10 @@ class IdioticNanowrimoAppender:
                 ret = whole[-DEFAULT_TAIL_COUNT:]
         return ret
 
+
+    def check_file(self):
+        return self.check_any_file(self.filename)
+
     def __init__(self, args):
         self._parse(args)
 
@@ -569,6 +576,41 @@ class IdioticNanowrimoAppender:
             self.ui.write("[...]")
             self.ui.write(tail)
 
+    def _show_outline(self, order):
+        fn = Path(self.filename)
+        c = re.split("[-_]", fn.stem)
+        if len(c) == 1:
+            c = fn.stem.split(".")
+            spec = c[0] + "*"
+        else:
+            spec = c[0] + "*" + fn.suffix
+        things = []
+        for what in glob.glob(str(fn.parent / spec)):
+            p = Path(what)
+            if not p.is_file():
+                continue
+            if p.suffix == ".bak" or p.suffix.endswith("~") or p.suffix.startswith("~") or p.suffix.endswith("#"):
+                continue
+            things.append(str(what))
+        if not things:
+            self.ui.write("<<Could not find navel.>>\n")
+            return
+        things.sort()
+        if order >= len(things):
+            order = 0
+        if order < 0 and -order > len(things):
+            order = 0
+        outline = Path(things[order])
+        tail = None
+        if outline.exists():
+            tail = self.check_any_file(str(outline))
+        self.ui.write("\n")
+        if tail is None or tail.strip() == "":
+            self.ui.write("<<Not available.>>\n")
+        else:
+            self.ui.write("<<{}>> ".format(outline))
+            self.ui.write(tail.strip())
+            self.ui.write(" <<{}>>\n".format(outline))
 
     def load(self, stdscr): 
         self.ui = UiComponent(stdscr)
@@ -584,7 +626,6 @@ class IdioticNanowrimoAppender:
         self.contest_words = None
         self.contest_data = None
         self.contest_wpm = None 
-        self._reload(None)
 
     def _update_status(self):
         self.ui.status_line(
@@ -691,8 +732,37 @@ class IdioticNanowrimoAppender:
             self._do_race()
         elif key == CTRL_B:
             self._do_oneline()
-        elif key == curses.KEY_RESIZE:
+        elif key == 393:
+            self._show_outline(0)
+        elif key == 402:
+            self._show_outline(-1)
+        elif key == curses.KEY_RESIZE or key == CTRL_L:
             self._reload(outf)
+        elif key == 336:
+            self._load_next(outf, 1)
+        elif key == 337:
+            self._load_next(outf, -1)
+        elif key is not None:
+            self._do_todo(outf)
+            # self.ui.write(str(key))
+
+    def _load_next(self, outf, offset):
+        fn = Path(self.filename)
+        pattern = re.compile(r"([0-9]+)")
+        got = re.findall(pattern, fn.stem)
+        if len(got) != 1:
+            return
+        orig = got[0]
+        newn = int(orig) + offset
+        if newn < 1:
+            self.ui.flash()
+            return
+        new = str(newn)
+        while len(new) < len(orig):
+            new = "0" + new
+        self.next_filename = self.filename.replace(orig, new)
+        outf.close()
+        return 
 
     def _calculate_war(self): 
         check = time.perf_counter() - self.contest_starttime
@@ -741,16 +811,24 @@ class IdioticNanowrimoAppender:
             self._calculate_race()
 
     def loop(self, stdscr): 
-        self.load(stdscr)
-        key = self.ui.getch(timeout=0.2)
-        with open(self.filename, "at") as outf:
-            while key != CTRL_X:
-                self._run_key(outf, key)
-                self._run_contests()
-                self._update_status()
-                if self.ui.need_reset:
-                    self._reload(outf)
-                key = self.ui.getch(timeout=0.2)
+        key = None
+        self.next_filename = self.filename
+        while self.next_filename is not None:
+            self.filename = self.next_filename
+            self.load(stdscr)
+            self._reload()
+            self.next_filename = None
+            with open(self.filename, "at") as outf:
+                while key != CTRL_X:
+                    self._run_key(outf, key)
+                    if outf.closed:
+                        key = None
+                        break
+                    self._run_contests()
+                    self._update_status()
+                    if self.ui.need_reset:
+                        self._reload(outf)
+                    key = self.ui.getch(timeout=0.2)
 
 def from_human_duration(code, *, minutes = False):
     if code is None or isinstance(code, int) or isinstance(code,float) or code == "":
