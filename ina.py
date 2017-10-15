@@ -553,6 +553,17 @@ class IdioticNanowrimoAppender:
 
     def __init__(self, args):
         self._parse(args)
+        self.ui = None
+
+        self.new_words = 0
+        self.start_duration = 0
+        self.contest_mode = None
+        self.contest_starttime = None
+        self.contest_startwords = None
+        self.contest_time = None
+        self.contest_words = None
+        self.contest_data = None
+        self.contest_wpm = None 
 
     def _reload(self, outf = None):
         if outf is not None:
@@ -613,19 +624,11 @@ class IdioticNanowrimoAppender:
             self.ui.write(" <<{}>>\n".format(outline))
 
     def load(self, stdscr): 
-        self.ui = UiComponent(stdscr)
-        self.ui.toggle_oneline(self.one_line)
-        self.ui.wrap_margin = self.wrap_margin
-        self.new_words = 0
-        self.start_duration = 0
+        if not self.ui:
+            self.ui = UiComponent(stdscr)
+            self.ui.toggle_oneline(self.one_line)
+            self.ui.wrap_margin = self.wrap_margin
         self.start_time = time.perf_counter() 
-        self.contest_mode = None
-        self.contest_starttime = None
-        self.contest_startwords = None
-        self.contest_time = None
-        self.contest_words = None
-        self.contest_data = None
-        self.contest_wpm = None 
 
     def _update_status(self):
         self.ui.status_line(

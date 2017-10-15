@@ -179,6 +179,9 @@ the Left-Outline and Right-Outline keys will be consistent, none of them may
 be presenting the same information as Control-L. (Control-L will always
 refresh the output file.)
 
+Note that switching files will reset the "session time", but will not interrupt
+on-going contests.
+
 Screen shots
 ------------
 
