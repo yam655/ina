@@ -27,7 +27,7 @@ parser.add_argument("--one-line", "-b", action='store_true',
         help="Enable one-line mode from the start.")
 parser.add_argument("--generate-config", action='store_true',
         help="Create a config file in ~/.config/ina/settings.conf")
-parser.add_argument('--version', action='version', version='ina Version 0.9+PROJECT.1')
+parser.add_argument('--version', action='version', version='ina Version 0.9.1')
 
 
 config = ConfigParser(inline_comment_prefixes=None)
