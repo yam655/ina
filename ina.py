@@ -512,6 +512,7 @@ class IdioticNanowrimoAppender:
         if fpath.exists():
             whole = fpath.read_text()
         ret = whole
+        self.start_words = 0
         if whole is not None:
             self.start_words = len(whole.split())
             if self.tail_type in ("word", "words"):
@@ -600,6 +601,8 @@ class IdioticNanowrimoAppender:
             p = Path(what)
             if not p.is_file():
                 continue
+            if p == fn:
+                continue
             if p.suffix == ".bak" or p.suffix.endswith("~") or p.suffix.startswith("~") or p.suffix.endswith("#"):
                 continue
             things.append(str(what))
@@ -614,7 +617,7 @@ class IdioticNanowrimoAppender:
         outline = Path(things[order])
         tail = None
         if outline.exists():
-            tail = self.check_any_file(str(outline))
+            tail = outline.read_text()
         self.ui.write("\n")
         if tail is None or tail.strip() == "":
             self.ui.write("<<Not available.>>\n")
@@ -814,10 +817,15 @@ class IdioticNanowrimoAppender:
             self._calculate_race()
 
     def loop(self, stdscr): 
+        global code
         key = None
+        curses.use_default_colors()
         self.next_filename = self.filename
         while self.next_filename is not None:
             self.filename = self.next_filename
+            sys.stderr.write("\x1b]0;" + self.filename + "\x07")
+            sys.stderr.flush()
+
             self.load(stdscr)
             self._reload()
             self.next_filename = None
