@@ -342,7 +342,7 @@ That is currently as follows::
     # pomodoro-during-run: words time rate
 
     ## todo-marker
-    ##      When you accidentally hit backspace and some other editing keys,
+    ##      When you accidentally hit TAB or an editing key,
     ##      it will insert a to-do marker ("TODO" by default). If you
     ##      prefer another marker, change that here.
     # todo-marker: TODO
@@ -354,6 +354,12 @@ That is currently as follows::
     ##      margin where as soon as you type a space in this margin, it
     ##      wraps your text. This is handled as a percentage of screen size.
     # wrap-margin: 15
+
+    ## truncate-enabled
+    ##      While strict append is useful, sometimes the ability to remove
+    ##      the previous word is also useful. When truncation is enabled,
+    ##      backspace will remove the previous word.
+    # truncate-enabled: false
 
 
 Original Example Text
@@ -369,7 +375,8 @@ Things to remember:
 
 * There is no editing functionality.
 * It saves as you go.
-* Backspace inserts TODO.
+* TAB inserts TODO.
+* If truncation is enabled, backspace deletes whole words
 
 If you use a light-weight markup format, such as
 reStructuredText, Markdown, or similar, this
