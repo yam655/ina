@@ -27,7 +27,7 @@ parser.add_argument("--one-line", "-b", action='store_true',
         help="Enable one-line mode from the start.")
 parser.add_argument("--generate-config", action='store_true',
         help="Create a config file in ~/.config/ina/settings.conf")
-parser.add_argument('--version', action='version', version='ina Version 0.9.2')
+parser.add_argument('--version', action='version', version='ina Version 0.9.3')
 
 
 config = ConfigParser(inline_comment_prefixes=None)
@@ -127,7 +127,7 @@ dist_config = '''
 # pomodoro-during-run: words time rate
 
 ## todo-marker
-##      When you accidentally hit backspace and some other editing keys,
+##      When you accidentally hit TAB or an editing key,
 ##      it will insert a to-do marker ("TODO" by default). If you
 ##      prefer another marker, change that here.
 # todo-marker: TODO
@@ -139,6 +139,12 @@ dist_config = '''
 ##      margin where as soon as you type a space in this margin, it
 ##      wraps your text. This is handled as a percentage of screen size.
 # wrap-margin: 15
+
+## truncate-enabled
+##      While strict append is useful, sometimes the ability to remove
+##      the previous word is also useful. When truncation is enabled,
+##      backspace will remove the previous word.
+# truncate-enabled: false
 '''
 
 
@@ -487,6 +493,11 @@ class IdioticNanowrimoAppender:
         if "pomodoro-during-run" in config["general"]:
             self.pomodoro_during_run = set(split(config["general"]["pomodoro-during-run"].strip()))
         self.pomodoro_time = config["general"].get("pomodoro-time", DEFAULT_POMODORO_TIME).strip()
+        self.truncate_enabled = config["general"].get("truncate-enabled", "False").strip()
+        if not self.truncate_enabled or self.truncate_enabled.lower() in ("false", "0", 0):
+            self.truncate_enabled = False
+        else:
+            self.truncate_enabled = True
         if "tail-count" in config["general"]:
             tc = config["general"]["tail-count"].strip().split()
             try:
@@ -520,6 +531,8 @@ class IdioticNanowrimoAppender:
                 ret = " ".join(t).replace(" [NEW-PARAGRAPH]", "\n\n")
                 if not whole.endswith("\n\n") and whole.endswith("\n"):
                     ret = ret + "\n"
+                elif whole.endswith(" "):
+                    ret = ret + " "
             elif self.tail_type in ("line", "lines"):
                 ret = "\n".join(whole.split("\n")[-self.tail_count:])
             elif self.tail_type in ("character", "characters", "codepoint",
@@ -542,6 +555,8 @@ class IdioticNanowrimoAppender:
                     ret = "\n\n".join(r)
                 elif whole.endswith("\n"):
                     ret = "\n\n".join(r) + "\n"
+                elif whole.endswith(" "):
+                    ret = "\n\n".join(r) + " "
                 else:
                     ret = "\n\n".join(r)
             else:
@@ -603,11 +618,13 @@ class IdioticNanowrimoAppender:
                 continue
             if p == fn:
                 continue
+            if p == fn:
+                continue
             if p.suffix == ".bak" or p.suffix.endswith("~") or p.suffix.startswith("~") or p.suffix.endswith("#"):
                 continue
             things.append(str(what))
         if not things:
-            self.ui.write("<<Could not find navel.>>\n")
+            self.ui.write("<<Could not find navel: {}.>>\n".format(spec))
             return
         things.sort()
         if order >= len(things):
@@ -723,11 +740,14 @@ class IdioticNanowrimoAppender:
             self._reload()
 
     def _run_key(self, outf, key):
-        if isinstance(key, str):
+        if isinstance(key, str) and key and key not in ("\t", "\a"):
             self._do_input(outf, key)
         elif key in (CTRL_H, CTRL_QUESTION,
                         curses.KEY_BACKSPACE, curses.KEY_DC):
-            self._do_todo(outf)
+            if self.truncate_enabled:
+                self._do_backspace(outf)
+            else:
+                self._do_todo(outf)
         elif key == CTRL_W:
             self._do_war()
         elif key == CTRL_T:
@@ -770,7 +790,32 @@ class IdioticNanowrimoAppender:
         outf.close()
         return 
 
-    def _calculate_war(self): 
+    def _do_backspace(self, outf):
+        self.next_filename = self.filename
+        fn = Path(self.filename)
+        outf.close()
+        everything = fn.read_text()
+        if everything == "":
+            self.ui.flash()
+            return
+        self.new_words -= 1
+        trunc = -1
+        need_space = ""
+        try:
+            while everything[trunc].isspace():
+                trunc -= 1
+            while not everything[trunc].isspace():
+                trunc -= 1
+            if everything[trunc].isspace():
+                need_space = " "
+        except IndexError:
+            trunc=0
+        fnn = Path(self.filename + ".new")
+        fnn.write_text(everything[:trunc] + need_space)
+        fnn.rename(fn)
+        return
+
+    def _calculate_war(self):
         check = time.perf_counter() - self.contest_starttime
         self.contest_time = self.contest_data - check
         self.contest_words = self.new_words - self.contest_startwords
