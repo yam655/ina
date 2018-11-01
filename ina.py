@@ -618,6 +618,8 @@ class IdioticNanowrimoAppender:
                 continue
             if p == fn:
                 continue
+            if p == fn:
+                continue
             if p.suffix == ".bak" or p.suffix.endswith("~") or p.suffix.startswith("~") or p.suffix.endswith("#"):
                 continue
             things.append(str(what))
@@ -811,9 +813,9 @@ class IdioticNanowrimoAppender:
         fnn = Path(self.filename + ".new")
         fnn.write_text(everything[:trunc] + need_space)
         fnn.rename(fn)
-        return 
+        return
 
-    def _calculate_war(self): 
+    def _calculate_war(self):
         check = time.perf_counter() - self.contest_starttime
         self.contest_time = self.contest_data - check
         self.contest_words = self.new_words - self.contest_startwords
