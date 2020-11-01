@@ -27,7 +27,7 @@ parser.add_argument("--one-line", "-b", action='store_true',
         help="Enable one-line mode from the start.")
 parser.add_argument("--generate-config", action='store_true',
         help="Create a config file in ~/.config/ina/settings.conf")
-parser.add_argument('--version', action='version', version='ina Version 0.9.3')
+parser.add_argument('--version', action='version', version='ina Version 0.9.4')
 
 
 config = ConfigParser(inline_comment_prefixes=None)
@@ -618,8 +618,6 @@ class IdioticNanowrimoAppender:
                 continue
             if p == fn:
                 continue
-            if p == fn:
-                continue
             if p.suffix == ".bak" or p.suffix.endswith("~") or p.suffix.startswith("~") or p.suffix.endswith("#"):
                 continue
             things.append(str(what))
@@ -758,15 +756,15 @@ class IdioticNanowrimoAppender:
             self._do_race()
         elif key == CTRL_B:
             self._do_oneline()
-        elif key == 393:
+        elif key == 393 or key == 262:
             self._show_outline(0)
-        elif key == 402:
+        elif key == 402 or key == 360:
             self._show_outline(-1)
         elif key == curses.KEY_RESIZE or key == CTRL_L:
             self._reload(outf)
-        elif key == 336:
+        elif key == 336 or key == 338:
             self._load_next(outf, 1)
-        elif key == 337:
+        elif key == 337 or key == 339:
             self._load_next(outf, -1)
         elif key is not None:
             self._do_todo(outf)

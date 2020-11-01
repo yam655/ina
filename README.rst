@@ -78,22 +78,22 @@ Key commands
     This hides all of the text except for the current line.
     This toggles One-Line Mode, so if it is enabled, it will disable it.
 
-Shift-Down
+Shift-Down, PageDown
 
     *Next File.* This looks for the number in your filename and increments
     it. See "Project Support" for details.
 
-Shift-Up
+Shift-Up, PageUp
 
     *Previous File.* This looks for the number in your filename name
     decrements it. See "Project Support" for details.
 
-Shift-Right
+Shift-Right, Home
 
     *Outline on Right* This tries to show you a similarly named outline file.
     See "Project Support" for details.
 
-Shift-Left
+Shift-Left, End
 
     *Outline on Left* This tries to show you a similarly named outline file.
     See "Project Support" for details.
@@ -139,8 +139,9 @@ Project Support
 
 There is some very crude support for multi-file projects.
 
-There's support for using Shift-Down to go to the next file, and Shift-Up to
-go to the previous file. There's some major caveats, though.
+There's support for using Shift-Down (or PageDown) to go to the next
+file, and Shift-Up (or PageUp) to go to the previous file. There's some
+major caveats, though.
 
 If you're writing with one chapter per file, it expects the chapter number to
 be the only number in the filename. Whether this is one digit or three doesn't
