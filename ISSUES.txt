@@ -1,0 +1,31 @@
+
+Issues
+######
+
+Some terminals don't support Shift-KeyPad
+=========================================
+
+Shift-keypad was chosen because primary development happened on a laptop
+that didn't have page up/down keys. When Shift Up/down was mapped to
+the previous/next files, it made more sense to support left/right for
+outline files.
+
+On terminal emulators without this support, while page up/down still
+make sense, the home/end functionality does not.
+
+If you really want it to make sense, use a terminal emulator with
+shift-keypad functionality.
+
+
+Backspace messes up the numbers
+===============================
+
+Backspace to remove the previous word is an experimental feature and
+may be removed.
+
+It is known to not always play nicely with contests.
+
+It's an issue. I've stopped using the functionality, so it may be going
+away.
+
+
