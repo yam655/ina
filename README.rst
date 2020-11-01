@@ -4,7 +4,7 @@ ina: Idiotic NaNoWroMo Appender
 When a person engages in National Novel Writing Month, they are supposed to put
 their inner editor away.
 
-`ina` isn't an editor, so it helps you put your editor away. 
+`ina` isn't an editor, so it helps you put your inner editor away. 
 
 `ina` an appender. It has no editing capabilities.
 
