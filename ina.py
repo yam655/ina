@@ -767,8 +767,8 @@ class IdioticNanowrimoAppender:
         elif key == 337 or key == 339:
             self._load_next(outf, -1)
         elif key is not None:
-            # self._do_todo(outf)
-            self.ui.write(str(key))
+            self._do_todo(outf)
+            # self.ui.write(str(key))
 
     def _load_next(self, outf, offset):
         fn = Path(self.filename)
